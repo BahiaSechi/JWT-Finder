@@ -12,9 +12,9 @@ import (
 
 // Configuration - Flags
 var config struct {
-	domain   string
-	wordlist string
-	// TODO add output file, for now I will dev with a default file
+	domain     string
+	wordlist   string
+	outputfile string
 	// TODO add flag print mode or only output in file
 }
 
@@ -30,7 +30,7 @@ func main() {
 	// Flags available
 	flag.StringVar(&config.domain, "d", config.domain, "Specify the domain to scan")
 	flag.StringVar(&config.wordlist, "w", config.wordlist, "Specify a path to the wordlist")
-
+	flag.StringVar(&config.outputfile, "o", config.outputfile, "Output file to save results")
 	// Display flags help
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), usage, os.Args[0])

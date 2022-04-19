@@ -9,3 +9,13 @@ This tool is used for learning purposes.
 ## Installation
 
 WIP.
+
+## Usage
+
+```
+go run cmd/jwtfinder/main.go -d URL
+```
+
+```
+go run cmd/jwtfinder/main.go -w WORDLIST
+```

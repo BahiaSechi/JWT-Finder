@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"strings"
+	"time"
 
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
@@ -14,38 +14,57 @@ import (
 // Open a browser
 func Navigate(domain string) {
 
-	// create chrome instance
-	ctx, cancel := chromedp.NewContext(
-		context.Background(),
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.Flag("ignore-certificate-errors", true),
 	)
+
+	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
+	defer cancel()
+
+	// create context
+	ctx, cancel := chromedp.NewContext(allocCtx, chromedp.WithLogf(log.Printf))
+	defer cancel()
+
+	ctx, cancel = context.WithTimeout(ctx, 25*time.Second)
 	defer cancel()
 
 	if ctx == nil {
 		fmt.Println("Context error")
 		return
 	}
+	chromedp.ListenTarget(ctx, func(event interface{}) {
+		switch responseReceivedEvent := event.(type) {
+		case *network.EventResponseReceived:
+			response := responseReceivedEvent.Response
+
+			if auth, ok := response.Headers["Authorization"]; ok {
+				log.Printf("%s", auth)
+			}
+			if auth, ok := response.Headers["authorization"]; ok {
+				log.Printf("%s", auth)
+			}
+		}
+	})
 
 	// navigate to a page
 	if err := chromedp.Run(ctx,
+		network.Enable(),
 		chromedp.Navigate(domain),
 		chromedp.ActionFunc(cookies),
-		// Check Authrozation header and print it
+		/* Crawler
 		chromedp.ActionFunc(func(ctx context.Context) error {
-			resp, err := http.Get(domain)
-
+			node, err := dom.GetDocument().Do(ctx)
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
+			response, err := dom.GetOuterHTML().WithNodeID(node.NodeID).Do(ctx)
+			fmt.Println(response)
+			//log.Printf("%s", response)
 
-			fmt.Println("Authorization : " + resp.Header.Get("Authorization"))
-			//fmt.Println("Content-Security-Policy : " + resp.Header.Get("Content-Security-Policy"))
-			//fmt.Println("Last-Modified : " + resp.Header.Get("Last-Modified"))
-			//fmt.Println("Date : " + resp.Header.Get("Date"))
-
-			return nil
-		}),
+			return err
+		}),*/
 	); err != nil {
-		log.Fatal(err)
+		fmt.Println("\033[31m", err, "\033[0m")
 	}
 
 }
@@ -61,7 +80,6 @@ func cookies(ctx context.Context) error {
 	// Display every cookie
 	for i, cookie := range cookies {
 		fmt.Printf("Cookie  %d: %v\n", i, cookie.Name)
-		// TODO write in file
 
 		// Check if one of the cookies is named JWT
 		if verifyJWT(cookie) {
@@ -69,19 +87,17 @@ func cookies(ctx context.Context) error {
 		}
 	}
 
+	fmt.Println("\033[36m", "Number of cookies :", len(cookies), "\033[0m")
+
 	return nil
 }
 
 // Check if the cookie is named JWT or jwt
 func verifyJWT(cookie *network.Cookie) bool {
-	if strings.Contains(cookie.Name, "JWT") || strings.Contains(cookie.Name, "jwt") {
-		fmt.Println(cookie.Domain, "JWT")
+	if strings.Contains(strings.ToLower(cookie.Name), "jwt") {
+		fmt.Println("\033[32m", cookie.Domain, "JWT", "\033[0m")
 		// TODO write in file
 		return true
 	}
 	return false
-}
-
-func writeFile() {
-	// TODO write results in file
 }
